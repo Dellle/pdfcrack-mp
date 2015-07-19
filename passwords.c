@@ -187,7 +187,7 @@ static void setPattern(const char *pat)
 	// Convert basic format pattern into password pattern array	
 	setPatternArray(pattern, patternLen, passwordPatternArray, passwordPatternLengths, passwordPatternDivs);
 	
-	maxPatternPasswords = passwordPatternDivs[patternLen-1]*passwordPatternLengths[patternLen-1];
+	maxPatternPasswords = passwordPatternDivs[patternLen-1]*passwordPatternLengths[0];
 	
 	for (unsigned int i=0; i<patternLen; i++)
 	{	
@@ -208,7 +208,7 @@ unsigned long long int getMaxPatternPasswords()
 }
 
 
-// Core function to return the ith password from the password pattern array
+// Core function to return the ith password from the password pattern array and its length
 
 int getPatternPassword(long long int n, uint8_t* patPassword)
 {
@@ -230,7 +230,7 @@ int getPatternPassword(long long int n, uint8_t* patPassword)
 	
 	patPassword[patternLen] = '\0';
 	
-	return 1;
+	return patternLen;
 }
 
 
