@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2020 Henning Norén
  * Copyright (C) 1996-2005 Glyph & Cog, LLC.
  * 
  * This program is free software; you can redistribute it and/or
@@ -75,13 +75,13 @@ md5(const uint8_t *msg, const unsigned int msgLen, uint8_t *digest) {
   for (i = 0; i < n64; ++i) {
 
     /** grab a 64-byte block */
-    for (j = 0; j < 16 && k < msgLen - 3; ++j, k += 4)
-      x[j] = (((((msg[k+3] << 8) + msg[k+2]) << 8) + msg[k+1]) << 8) + msg[k];
+    for (j = 0; j < 16 && (signed)k < (signed)msgLen - 3; ++j, k += 4)
+      x[j] = ((((((unsigned)msg[k+3] << 8) + (unsigned)msg[k+2]) << 8) + (unsigned)msg[k+1]) << 8) + msg[k];
     if (i == n64 - 1) {
       if (k == msgLen - 3)
-	x[j] = 0x80000000 + (((msg[k+2] << 8) + msg[k+1]) << 8) + msg[k];
+	x[j] = 0x80000000 + ((((unsigned)msg[k+2] << 8) + (unsigned)msg[k+1]) << 8) + msg[k];
       else if (k == msgLen - 2)
-	x[j] = 0x800000 + (msg[k+1] << 8) + msg[k];
+	x[j] = 0x800000 + ((unsigned)msg[k+1] << 8) + msg[k];
       else if (k == msgLen - 1)
 	x[j] = 0x8000 + msg[k];
       else
@@ -208,18 +208,13 @@ md5_50f(uint8_t *msg, const unsigned int msgLen __attribute__((unused))) {
   register uint32_t a, b, c, d;
   int i;
 
-  a = (((((msg[ 3] << 8) + msg[ 2]) << 8) + msg[ 1]) << 8) + msg[ 0];
-  b = (((((msg[ 7] << 8) + msg[ 6]) << 8) + msg[ 5]) << 8) + msg[ 4];
-  c = (((((msg[11] << 8) + msg[10]) << 8) + msg[ 9]) << 8) + msg[ 8];
-  d = (((((msg[15] << 8) + msg[14]) << 8) + msg[13]) << 8) + msg[12];
+  a = ((((((unsigned)msg[ 3] << 8) + (unsigned)msg[ 2]) << 8) + (unsigned)msg[ 1]) << 8) + msg[ 0];
+  b = ((((((unsigned)msg[ 7] << 8) + (unsigned)msg[ 6]) << 8) + (unsigned)msg[ 5]) << 8) + msg[ 4];
+  c = ((((((unsigned)msg[11] << 8) + (unsigned)msg[10]) << 8) + (unsigned)msg[ 9]) << 8) + msg[ 8];
+  d = ((((((unsigned)msg[15] << 8) + (unsigned)msg[14]) << 8) + (unsigned)msg[13]) << 8) + msg[12];
 
   for(i = 0; i < 50; i++) {
-    uint32_t aa, bb, cc, dd;
- 
-    dd = d;
-    cc = c;
-    bb = b;
-    aa = a;
+    const uint32_t aa=a, bb=b, cc=c, dd=d;
 
     /** round 1 */
     /**MD5_ROUND1(a,BB,CC,DD, aa, 7, 0xd76aa478);

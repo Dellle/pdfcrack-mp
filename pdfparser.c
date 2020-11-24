@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2020 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -102,6 +102,23 @@ parseWhiteSpace(FILE *file) {
   return ch;
 }
 
+static char
+parseWhiteSpaceOrComment(FILE *file) {
+  int ch;
+  do {
+    do {
+      ch = getc(file);
+    } while(isWhiteSpace(ch));
+    if(ch == '%') {
+      do {
+	ch = getc(file);
+      } while(!(ch >= 0x09 && ch <= 0x0d) && ch != EOF);
+      ch = getc(file);
+    }
+  } while(isWhiteSpace(ch) || ch == '%');
+  return ch;
+}
+
 static char*
 parseName(FILE *file) {
   int ch;
@@ -116,7 +133,7 @@ parseName(FILE *file) {
     return NULL;
   }
   ch = getc(file);
-  for(i=0; i<BUFFSIZE && !isWhiteSpace(ch) && 
+  for(i=0; i<BUFFSIZE-1 && !isWhiteSpace(ch) && 
 	!isDelimiter(ch) && ch != EOF; ++i) {
     buff[i] = ch;
     ch = getc(file);
@@ -171,13 +188,13 @@ openPDF(FILE *file, EncData *e) {
     major_v = parseInt(file);
     if(getc(file) == '.')
       minor_v = parseInt(file);
-    if(major_v >= 0)
+    if(major_v >= 0 && minor_v >=0)
       ret = true;
   }
 
   if(ret) {
-    e->version_major = major_v;
-    e->version_minor = minor_v;
+    e->version_major = (unsigned)major_v;
+    e->version_minor = (unsigned)minor_v;
   } 
   return ret;
 }
@@ -198,7 +215,7 @@ static p_str*
 parseHexString(const uint8_t *buf, const unsigned int len) {
   unsigned int i,j;
   p_str *ret;
- 
+
   ret = malloc(sizeof(p_str));
   ret->content = malloc(sizeof(uint8_t)*(len/2));
   ret->len = (len/2);
@@ -289,7 +306,7 @@ static p_str*
 parseRegularString(FILE *file) {
   unsigned int len, p;
   int ch;
-  p_str *ret;
+  p_str *ret = NULL;
   uint8_t buf[BUFFSIZE];
   bool skip = false;
 
@@ -312,7 +329,8 @@ parseRegularString(FILE *file) {
       ch = getc(file);
     }
     ungetc(ch, file);
-    ret = objStringToByte(buf, len);
+    if(len > 0)
+      ret = objStringToByte(buf, len);
   }
   else if(ch == '<') {
     len = 0;
@@ -325,11 +343,10 @@ parseRegularString(FILE *file) {
       ch = getc(file);
     }
     ungetc(ch,file);
-    ret = parseHexString(buf,len);
+    if((len > 1) && ((len%2) == 0))
+      ret = parseHexString(buf,len);
   }
-  else
-    ret = NULL;
-return ret;
+  return ret;
 }
 
 static int
@@ -375,6 +392,9 @@ findTrailerDict(FILE *file, EncData *e) {
 	  ch = getc(file);
 	  /**printf("found a name: %c\n", ch);*/
 	  if(e_pos < 0 && ch == 'E' && isWord(file, "ncrypt")) {
+	    ch = getc(file);
+	    if(!isWhiteSpace(ch))
+	      continue;
 	    e_pos = parseIntWithC(file,parseWhiteSpace(file));
 	    if(e_pos >= 0) {
 	      /**
@@ -391,8 +411,7 @@ findTrailerDict(FILE *file, EncData *e) {
 	      ch = getc(file);
 
 	    if(str) {
-	      if(str->content)
-		free(str->content);
+	      free(str->content);
 	      free(str);
 	    }
 	      
@@ -403,6 +422,9 @@ findTrailerDict(FILE *file, EncData *e) {
 	    */
 	    if(str)
 	      id = true;
+	    else
+	      id = false;
+
 	    ch = getc(file);
 	  }
 	  else
@@ -426,8 +448,7 @@ findTrailerDict(FILE *file, EncData *e) {
   /**  printf("finished searching\n");*/
   
   if(str) {
-    if(str->content)
-      	free(str->content);
+    free(str->content);
     free(str);
   }
   
@@ -482,6 +503,9 @@ findTrailer(FILE *file, EncData *e) {
 	    ch = getc(file);
 	    /**printf("found a name: %c\n", ch);*/
 	    if(e_pos < 0 && ch == 'E' && isWord(file, "ncrypt")) {
+	      ch = getc(file);
+	      if(!isWhiteSpace(ch))
+		continue;
 	      e_pos = parseIntWithC(file,parseWhiteSpace(file));
 	      if(e_pos >= 0) {
 		/**
@@ -492,7 +516,7 @@ findTrailer(FILE *file, EncData *e) {
 		encrypt = true;
 	      }
 	    }
-	    else if(ch == 'I' && getc(file) == 'D') {
+	    else if(!id && ch == 'I' && getc(file) == 'D') {
 	      ch = parseWhiteSpace(file);
 	      while(ch != '[' && ch != EOF)
 		ch = getc(file);
@@ -502,13 +526,13 @@ findTrailer(FILE *file, EncData *e) {
 		  free(str->content);
 		free(str);
 	      }
-
+	      
 	      str = parseRegularString(file);
 	      /**
-	      pos_i = ftell(file);
-	      printf("found ID at pos %x\n", pos_i);
+		 pos_i = ftell(file);
+		 printf("found ID at pos %x\n", pos_i);
 	      */
-	      if(str)
+	      if(str) 
 		id = true;
 	      ch = getc(file);
 	    }
@@ -534,8 +558,7 @@ findTrailer(FILE *file, EncData *e) {
   /**  printf("finished searching\n");*/
 
   if(str) {
-    if(str->content)
-      	free(str->content);
+    free(str->content);
     free(str);
   }
 
@@ -624,8 +647,8 @@ parseEncrypObject(FILE *file, EncData *e) {
 	    e->s_handler = s_handler;
 	    ff = true;
 	  }
-	  break;
 	}
+	break;
       case 'L':
 	if(isWord(file, "ength")) {
 	  int tmp_l = parseIntWithC(file,parseWhiteSpace(file));
@@ -635,7 +658,7 @@ parseEncrypObject(FILE *file, EncData *e) {
 	    if(tmp_l > 256 || tmp_l < 40 || ((tmp_l % 8) != 0)) {
 	      fprintf(stderr, "WARNING: Length = %d\n", tmp_l);
 	    }
-	    e->length = tmp_l;
+	    e->length = (unsigned)tmp_l;
 	  }
 	  fl = true;
 	}
@@ -713,11 +736,10 @@ parseEncrypObject(FILE *file, EncData *e) {
     }
     ch = parseWhiteSpace(file);
   }
-    printf("\n");
 
   if(!fe)
     e->encryptMetaData = true;
-  if(!fl)
+  if(!fl || e->length == 0)
     e->length = 40;
   if(!fv)
     e->version = 0;
@@ -725,20 +747,24 @@ parseEncrypObject(FILE *file, EncData *e) {
   if(fr) {
     if (e->revision >= 5 && fu && fo) {
       if(o_len < 48) {
-	fprintf(stderr, "WARNING: O-String < 48 Bytes: %d\n", str->len);
+	fprintf(stderr, "WARNING: O-String < 48 Bytes: %d\n", o_len);
 	fo = false;
       }
       if(u_len < 48) {
-	fprintf(stderr, "WARNING: U-String < 48 Bytes: %d\n", str->len);
+	fprintf(stderr, "WARNING: U-String < 48 Bytes: %d\n", u_len);
 	fu = false;
       }
     }
     else {
       if(fu && fo) {
-	if(o_len != 32)
-	  fprintf(stderr, "WARNING: O-String != 32 Bytes: %d\n", str->len);
-	if(u_len != 32)
-	  fprintf(stderr, "WARNING: U-String != 32 Bytes: %d\n", str->len);
+	if(o_len != 32) {
+	  fprintf(stderr, "WARNING: O-String != 32 Bytes: %d\n", o_len);
+	  fo = false;
+	}
+	if(u_len != 32) {
+	  fprintf(stderr, "WARNING: U-String != 32 Bytes: %d\n", u_len);
+	  fu = false;
+	}
       }
       if (cf && aesv2) {
 	e->revision = 3;
@@ -747,9 +773,22 @@ parseEncrypObject(FILE *file, EncData *e) {
     }
   }
 
-  if(strcmp(e->s_handler,"Standard") != 0)
+  if(ff && strcmp(e->s_handler,"Standard") != 0)
     return true;
-
+  
+  /**
+  if(ff)
+    printf("Found Filter\n");
+  if(fo)
+    printf("Found Owner string\n");
+  if(fp)
+    printf("Found Permission\n");
+  if(fr)
+    printf("Found Revision\n");
+  if(fu)
+    printf("Found User String\n");
+  */
+ 
   return ff & fo && fp && fr && fu;
 }
 
@@ -757,11 +796,13 @@ parseEncrypObject(FILE *file, EncData *e) {
     This is not a really definitive search.
     Should be replaced with something better
 */
+
 static bool
 findEncryptObject(FILE *file, const int e_pos, EncData *e) {
   int ch;
 
   /** only find the encrypt object if e_pos > -1 */
+  
   if(e_pos < 0)
     return false;
 
@@ -773,7 +814,7 @@ findEncryptObject(FILE *file, const int e_pos, EncData *e) {
 	if(ch >= '0' && ch <= '9') {
 	  ch = parseWhiteSpace(file);
 	  if(ch == 'o' && getc(file) == 'b' && getc(file) == 'j' &&
-	     parseWhiteSpace(file) == '<' && getc(file) == '<') {
+	     parseWhiteSpaceOrComment(file) == '<' && getc(file) == '<') {
 	    return parseEncrypObject(file, e);
 	  }
 	}
@@ -781,6 +822,29 @@ findEncryptObject(FILE *file, const int e_pos, EncData *e) {
     }
     ch = getc(file);
   }
+
+  /** If this fails, do relaxed check to see if we might find it without
+      a EndOfLine character before the object */
+  rewind(file);
+  ch = getc(file);
+  while(ch != EOF) {
+    if(ch >= '0' && ch <= '9') {
+      ungetc(ch,file);
+      if(parseInt(file) == e_pos) {
+	ch = parseWhiteSpace(file);
+	if(ch >= '0' && ch <= '9') {
+	  ch = parseWhiteSpace(file);
+	  if(ch == 'o' && getc(file) == 'b' && getc(file) == 'j' &&
+	     parseWhiteSpaceOrComment(file) == '<' && getc(file) == '<') {
+	    return parseEncrypObject(file, e);
+	  }
+	}
+      }
+    }
+    ch = getc(file);
+  }
+
+  /** give up */
   return false;
 }
 

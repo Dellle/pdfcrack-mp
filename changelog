@@ -1,8 +1,42 @@
+2020-04-24  Henning Norén  <henning.noren@gmail.com> - 0.19
+* Fix MD5-calculation for very short keylengths (impossible in PDF-files)
+* Do not allow longer RC5 than 128 bits due to undefined behavior in specs
+  Thanks to p1ay8y3ar for reporting these issues
+* Fix parsing issue for Encrypt object (thanks to Stefano Carbone for report)
+* Fix a few signedness issues
+* Bump version to 0.19
+2019-08-19  Henning Norén  <henning.noren@gmail.com> - 0.18
+* Update copyright years for all changed files
+* Relax the search for encrypt object a bit more (thanks to Oleg for report)
+* Tweak benchmark to make better comparison between md5_50 slow and fast
+* Multiple inputfiles (-l) is not supported, so warn if used	
+* Remove a bunch of unecessary if(ptr) before free(ptr)
+* Bump version to 0.18
+2019-04-17  Henning Norén  <henning.noren@gmail.com> - 0.17
+* Ignore comments after obj in pdfparser. Thanks to Hima for report
+* Make loading save-state files a bit more robust
+  Thanks to Murmus CTF for showing these problems
+* Fix incorrect fallthrough in pdfparser
+* Bump version to 0.17
+2017-04-19  Henning Norén  <henning.noren@gmail.com> - 0.16
+* Remove incorrectly used pure-attribute (thanks to Carl Shapiro for report)
+* Fix a possible overflow by one in the parser
+* Fix pdfcrack starting despite being unable to extract encryption info
+* Fix indention in man-page. Thanks to Jakub Wilk for patch
+* Bump version to 0.16
+2015-09-25  Henning Norén  <henning.noren@gmail.com> - 0.15
+* Fix a few crashes found by "american fuzzy lop"
+* Make the benchmark a bit more robust with volatile
+* Fix a couple of undefined behaviours with left shift on int-type
+* Fix GNU Make-isms in Makefile, thanks to Leonardo Taccari
+* Fix various clang and cppchecker issues and warnings
+* Bump version to 0.15
 2014-08-31  Henning Norén  <henning.noren@gmail.com> - 0.14
 * Add man-page
 * s/CFLAGS=/CFLAGS +=/ in Makefile
 * s/gcc/($CC)/ in Makefile
 * Add support for wordlists and pdfs > 2GB (thanks to Gary Dewey)
+* Bump version to 0.14
 2014-02-10  Henning Norén  <henning.noren@gmail.com> - 0.13
 * Skip strip and add debug symbols in Makefile
 * Bail out if encountering rev 5+ (Not supported)

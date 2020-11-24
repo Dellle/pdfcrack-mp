@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006 Henning Norén
+ * Copyright (C) 2006-2020 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,7 +43,7 @@ struct EncData {
   unsigned int fileIDLen;
   unsigned int version_major;
   unsigned int version_minor;
-  int length;
+  unsigned int length;
   int permissions;
   int revision;
   int version;

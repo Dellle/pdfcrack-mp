@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2017 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@ static FILE *wordList = NULL;
 static const char *wordListName;
 static bool wlMore;
 static bool (*npw)() = NULL;
-static unsigned int (*spw)(uint8_t *outbuf) = NULL;
+static unsigned int (*spw)(uint8_t *) = NULL;
 static passwordMethod pwMethod;
 
 bool
@@ -46,7 +46,6 @@ wlSetPassword(uint8_t *outbuf) {
   int ch;
   unsigned int passlength;
 
-  ch = 0;
   passlength = 0;
 
   ch = getc(wordList);
@@ -55,7 +54,7 @@ wlSetPassword(uint8_t *outbuf) {
     ch = getc(wordList);
   }
 
-  /** clean up garbage of passwords longed than 32 chars */
+  /** clean up garbage of passwords longer than 32 chars */
   if(unlikely(passlength == 32))
     while(ch != '\n' && ch != '\r' && ch != EOF)
       ch = getc(wordList);
@@ -198,8 +197,8 @@ pw_loadState(FILE *file, char **wl) {
     if(fscanf(file, string_MPCLC, &maxPasswordLen, &charsetLen) < 2)
       return false;
 
-    /** check for extremely long charsets */
-    if(charsetLen > 256)
+    /** check for very long and negative charsets */
+    if(charsetLen > 256 || charsetLen < 1)
       return false;
 
     string = malloc(sizeof(uint8_t)*charsetLen+1);
@@ -209,8 +208,9 @@ pw_loadState(FILE *file, char **wl) {
     charset = (uint8_t*)string;
     
     /** get the linebreak */
-    getc(file);
-
+    if(getc(file) != '\n')
+      return false;
+ 
     for(i=0;i<PASSLENGTH-1;i++)
       if(fscanf(file, " %d", &password[i]) < 1) {
 	free(string);
@@ -218,17 +218,35 @@ pw_loadState(FILE *file, char **wl) {
       }
   }
   else if(pm == Wordlist) {
+    /** Does this even work? I guess not. It only seems to redo the wordlist,
+     not resuming from where it was when it ended */
+
     if(fscanf(file, "Wordlist(%d): ", &len) < 1)
       return false;
+
+    if(len < 1 || len > 32767)
+      return false;
+    
     string = malloc(sizeof(char)*len+1);
-    if(fscanf(file, "%[^\n]\n", string) < 1) {
-	free(string);
-	return false;
+    for(i=0;i<len;i++) {
+      string[i] = getc(file);
     }
+    
+    /** get the linebreak */
+    if(getc(file) != '\n') {
+      free(string);
+      return false;
+    }
+     
     string[len] = '\0';
     *wl = string;
     wordListName = string;
   }
+  else {
+    /** No idea what method to use for this value */
+    return false;
+  }
+
   pwMethod = pm;
   recovery = true;
 

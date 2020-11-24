@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2019 Henning Norén
  * Copyright (C) 1996-2005 Glyph & Cog, LLC.
  * 
  * This program is free software; you can redistribute it and/or
@@ -48,7 +48,7 @@ pad[32] = {
 /** buffers for stuff that we can precompute before the actual cracking */
 static uint8_t *encKeyWorkSpace;
 static uint8_t password_user[40];  /** need to cover 32 char + salt */
-static uint8_t *rev3TestKey;
+static const uint8_t *rev3TestKey;
 static unsigned int ekwlen;
 
 /** points to the current password in clear-text */
@@ -211,7 +211,6 @@ foundPassword(void) {
    **/
     
   if(!workWithUser && (encdata->revision < 5)) {
-    fin_search=-1;
     pad_start=0;
 
     do {
@@ -608,7 +607,7 @@ initPDFCrack(const EncData *e, const uint8_t *upw, const bool user,
 	     const char *wl, const passwordMethod pm, FILE *file,
 	     const char *cs, const unsigned int minPw,
 	     const unsigned int maxPw, const bool perm) {
-  uint8_t buf[128];
+  uint8_t *buf;
   unsigned int upwlen;
   uint8_t *tmp;
 
@@ -621,8 +620,8 @@ initPDFCrack(const EncData *e, const uint8_t *upw, const bool user,
   nrprocessed = 0;
   workWithUser = user;
   crackDone = false;
-
-  if(e->revision >= 5) {
+  
+  if(e->revision == 5) {
     permutation = (perm || permutation);
     if(permutation)
       permutate = do_permutate;
@@ -662,10 +661,12 @@ initPDFCrack(const EncData *e, const uint8_t *upw, const bool user,
     }
   }
   else if(e->revision >= 3) {
+    buf = malloc(32+sizeof(uint8_t)*e->fileIDLen);
     memcpy(buf, pad, 32);
     memcpy(buf + 32, e->fileID, e->fileIDLen);
     tmp = malloc(sizeof(uint8_t)*16);
     md5(buf, 32+e->fileIDLen, tmp);
+    free(buf);
     rev3TestKey = tmp;
     if(knownPassword) {
       if(!isUserPasswordRev3())
@@ -706,7 +707,6 @@ loadState(FILE *file, EncData *e, char **wl, bool *user) {
   unsigned int i;
   int tmp, tmp2, tmp3;
   size_t len;
-  char c;
 
   /** Load all the simple values bound to the document */
   if(fscanf(file,string_PRVPL, &e->version_major, &e->version_minor,
@@ -714,6 +714,10 @@ loadState(FILE *file, EncData *e, char **wl, bool *user) {
 	    &tmp, &e->fileIDLen) < 8)
     return false;
 
+  /** Unsupported revision might be indication of corrupt file */
+  if(e->revision > 5 || e->revision < 2)
+    return false;
+  
   /** bork out if length is insanely high */
   if(e->fileIDLen > 256)
     return false;
@@ -732,21 +736,23 @@ loadState(FILE *file, EncData *e, char **wl, bool *user) {
   if(fscanf(file,string_FILTER, &len) < 1)
     return false;
 
-  /** bork out if length is insanely high */
-  if(len > 256)
+  /** bork out if length is obviously wrong */
+  if(len > 256 || len <= 0)
     return false;
 
-  if(len > 0)
-    e->s_handler = malloc((sizeof(uint8_t)*len)+1);
+  e->s_handler = malloc((sizeof(uint8_t)*len)+1);
 
   for(i=0;i<(unsigned int)len;i++) {
-    if(fscanf(file, "%c", &c) < 1)
-      return false;
-    e->s_handler[i] = c;
+    e->s_handler[i] = getc(file);
   }
+
   /** Make sure we null-terminate the string */
   e->s_handler[i] = '\0';
 
+  /** Currently we only handle Standard, so probably corrupt otherwise */
+  if(strcmp(e->s_handler,"Standard") != 0)
+     return false;
+  
   /** Load the U- and O-strings */
   if(fscanf(file, "\nO:") == EOF)
     return false;

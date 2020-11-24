@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2020 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,7 +17,6 @@
  * USA.
  */
 #include <string.h>
-#include <assert.h>
 #include "rc4.h"
 
 #define likely(x)       __builtin_expect((x),1)
@@ -189,13 +188,13 @@ rc4Decrypt128b(const uint8_t *key, const uint8_t *bs,
   }
 }
 
-static int keyLen;
+static unsigned int keyLen;
 
 static void
 rc4DecryptArb(const uint8_t *key, const uint8_t *bs,
 	      const unsigned int len, uint8_t *out) {
   uint8_t state[256];
-  register unsigned int i;
+  register int i;
   register uint8_t j, tmp;
   
   /** initialize the state */
@@ -227,10 +226,10 @@ rc4Decrypt(const uint8_t *key, const uint8_t *bs,
 }
 
 /** sets which function the wrapper should call */
-__attribute__ ((pure)) bool
+bool
 setrc4DecryptMethod(const unsigned int length) {
-  assert(length < 256);
-  assert((length % 8) == 0);
+  if(length > 128 || length < 40 || length % 8 != 0)
+    return false;
 
   if(length == 128) {
     rc4d = &rc4Decrypt128b;

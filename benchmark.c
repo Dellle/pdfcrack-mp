@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2019 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@
 
 #define BENCHINTERVAL 3 /** The interval to run the specific benchmarks */
 
-static bool finished = false;
+static volatile bool finished = false;
 
 /** interruptBench is used to stop the current benchmark */
 static void
@@ -120,8 +120,7 @@ md5_50_bench(void) {
   uint8_t *buf;
   unsigned int nrprocessed = 0;
   clock_t startTime, endTime;
-  int i;
-
+  
   buf = calloc(16, sizeof(uint8_t));
   md5_50_init(16);
   alarm(BENCHINTERVAL);
@@ -135,11 +134,12 @@ md5_50_bench(void) {
   print_and_clean("MD5_50 (fast):\t", nrprocessed, &startTime, &endTime);
 
   buf[0] = 0;
+  md5_50_init(15); // lie about size to get slow version
   nrprocessed = 0;
   alarm(BENCHINTERVAL);
   startTime = clock();
   while(!finished) {
-    for(i=0; i<50; i++) { md5(buf, 16, buf); }
+    md5_50(buf, 16);
     buf[0]++;
     nrprocessed++;
   }

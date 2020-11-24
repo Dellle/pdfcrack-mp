@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014 Henning Norén
+ * Copyright (C) 2014-2015 Henning Norén
  * Copyright (C) 1996-2011 Glyph & Cog, LLC
  * 
  * This program is free software; you can redistribute it and/or
@@ -45,9 +45,9 @@ static void sha256HashBlock(const uint8_t *blk, uint32_t *hash) {
 
   /* 1. Prepare the message schedule */
   for (i = 0; i < 16; ++i) {
-    W[i] = (blk[i*4    ] << 24) 
-         | (blk[i*4 + 1] << 16) 
-         | (blk[i*4 + 2] << 8) 
+    W[i] = ((unsigned)blk[i*4    ] << 24) 
+         | ((unsigned)blk[i*4 + 1] << 16) 
+         | ((unsigned)blk[i*4 + 2] << 8) 
          |  blk[i*4 + 3];
   }
   for (; i < 64; ++i) {

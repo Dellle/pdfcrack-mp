@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006-2014 Henning Norén
+ * Copyright (C) 2006-2020 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@
 #define PRINTERVAL 20 /** Print Progress Interval (seconds) */
 #define CRASHFILE "savedstate.sav"
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 14
+#define VERSION_MINOR 19
 
 #define _FILE_OFFSET_BITS 64
 
@@ -91,7 +91,7 @@ main(int argc, char** argv) {
     work_with_user = true, permutation = false;
   uint8_t *userpassword = NULL;
   char *charset = NULL, *inputfile = NULL, *wordlistfile = NULL;
-  EncData *e;
+  EncData *e = NULL;
 
   /** Parse arguments */
   while(true) {
@@ -127,7 +127,7 @@ main(int argc, char** argv) {
       return 0;
     case 'c':
       if(charset)
-	fprintf(stderr,"Charset already set\n");
+	fprintf(stderr, "Charset already set\n");
       else
 	charset = strdup(optarg);
       break;
@@ -138,11 +138,12 @@ main(int argc, char** argv) {
 
     case 'l':
       if(inputfile) {
-	free(inputfile);
-	inputfile = NULL;
+	fprintf(stderr, "Inputfile already set\n");
       }
-      inputfile = strdup(optarg);
-      recovery = true;
+      else {
+	inputfile = strdup(optarg);
+	recovery = true;
+      }
       break;
 	
     case 'm':
@@ -158,8 +159,12 @@ main(int argc, char** argv) {
       break;
 
     case 'p':
-      userpassword = (uint8_t*)strdup(optarg);
-      work_with_user = false;
+      if(userpassword)
+	fprintf(stderr, "User password already set\n");
+      else {
+	userpassword = (uint8_t*)strdup(optarg);
+	work_with_user = false;
+      }
       break;
 
     case 'q':
@@ -192,7 +197,7 @@ main(int argc, char** argv) {
     default:
       printHelp(argv[0]);
       ret = 1;
-      goto out3;
+      goto out2;
     }
   }
 
@@ -217,13 +222,13 @@ main(int argc, char** argv) {
   if(!inputfile || minpw < 0 || maxpw < 0) {
     printHelp(argv[0]);
     ret = 1;
-    goto out3;
+    goto out2;
   }
 
   if((file = fopen(inputfile, "rb")) == 0) {
     fprintf(stderr,"Error: file %s not found\n", inputfile);
     ret = 2;
-    goto out3;
+    goto out2;
   }
 
   e = calloc(1,sizeof(EncData));
@@ -253,11 +258,10 @@ main(int argc, char** argv) {
     if(ret) {
       if(ret == EENCNF) 
 	fprintf(stderr, "Error: Could not extract encryption information\n");
-      else if(ret == ETRANF || ret == ETRENF || ret == ETRINF) {
+      else if(ret == ETRANF || ret == ETRENF || ret == ETRINF)
 	fprintf(stderr, "Error: Encryption not detected (is the document password protected?)\n");
-	ret = 4;
-	goto out1;
-      }
+      ret = 4;
+      goto out1;
     }
     else if(e->revision < 2 || (strcmp(e->s_handler,"Standard") != 0 || e->revision > 5)) {
       fprintf(stderr, "The specific version is not supported (%s - %d)\n", e->s_handler, e->revision);
@@ -318,12 +322,9 @@ main(int argc, char** argv) {
     fclose(wordlist);
     free(wordlistfile);
   }
-  if(inputfile)
-    free(inputfile);
-  if(charset)
-    free(charset);
-  if(userpassword)
-    free(userpassword);
+  free(inputfile);
+  free(charset);
+  free(userpassword);
 
   return 0;
 
@@ -332,13 +333,9 @@ main(int argc, char** argv) {
     fprintf(stderr, "Error: closing file %s\n", inputfile);
  out2:
   freeEncData(e);
- out3:
-  if(inputfile)
-    free(inputfile);
-  if(charset)
-    free(charset);
-  if(userpassword)
-    free(userpassword);
+  free(inputfile);
+  free(charset);
+  free(userpassword);
 
   exit(ret);
 }

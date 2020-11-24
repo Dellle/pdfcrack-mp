@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2006 Henning Norén
+ * Copyright (C) 2006-2019 Henning Norén
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,14 +25,10 @@ void
 freeEncData(EncData *e) {
   if(!e)
     return;
-  if(e->o_string)
-    free(e->o_string);
-  if(e->u_string)
-    free(e->u_string);
-  if(e->fileID)
-    free(e->fileID);
-  if(e->s_handler)
-    free(e->s_handler);
+  free(e->o_string);
+  free(e->u_string);
+  free(e->fileID);
+  free(e->s_handler);
   free(e);
 }
 
@@ -41,7 +37,7 @@ printEncData(EncData *e) {
   unsigned int i;
   uint8_t ch;
 
-  printf("PDF version %d.%d\n", e->version_major, e->version_minor);
+  printf("PDF version %u.%u\n", e->version_major, e->version_minor);
   if(e->s_handler)
     printf("Security Handler: %s\n",e->s_handler);
   printf("V: %d\nR: %d\nP: %d\nLength: %d\nEncrypted Metadata: %s\n", 
