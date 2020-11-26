@@ -1461,7 +1461,7 @@ initPDFCrack(const EncData *e, const uint8_t *upw, const bool user,
   passMeth = pm;
   numThreads = numth;
   
-  if(e->revision == 5) {
+  if(e->revision >= 5) {
     permutation = (perm || permutation);
     if(permutation)
       permutate = do_permutate;

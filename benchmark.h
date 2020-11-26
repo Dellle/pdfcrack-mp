@@ -21,6 +21,6 @@
 #define _PDFBENCH_H_
 
 void
-runBenchmark(void);
+runBenchmark(const int numth);
 
 #endif /** _PDFBENCH_H_ */

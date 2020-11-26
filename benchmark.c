@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <omp.h>
 #include "benchmark.h"
 #include "common.h"
 #include "md5.h"
@@ -41,6 +42,7 @@
 #define BENCHINTERVAL 3 /** The interval to run the specific benchmarks */
 
 static volatile bool finished = false;
+static int numThreads;
 
 /** interruptBench is used to stop the current benchmark */
 static void
@@ -66,8 +68,12 @@ print_and_clean(const char *str, unsigned int nrprocessed,
 
 static void
 sha256_bench(void) {
+  // omp_set_dynamic(0);
+  //omp_set_num_threads(numThreads);
+
   uint8_t *buf;
   uint8_t hash[32];
+  
   unsigned int nrprocessed = 0;
   clock_t startTime, endTime;
 
@@ -75,10 +81,20 @@ sha256_bench(void) {
 
   alarm(BENCHINTERVAL);
   startTime = clock();
-  while(!finished) {
-    sha256f(buf, COMMON_SHA256_SIZE, hash);
-    buf[0]++;
-    nrprocessed++;
+
+  // #pragma omp parallel for num_threads(4) default(none) reduction(+ : nrprocessed) shared(finished) firstprivate(buf, hash)
+  //#pragma omp parallel default(none) reduction(+ : nrprocessed) firstprivate (buf,hash)
+  //#pragma omp single
+  #pragma omp parallel default(none) shared(finished) firstprivate (buf,hash) reduction(+ : nrprocessed)
+  {
+  //for (int _finished=0;_finished<1;_finished+=finished) {
+    while(!finished) {
+      sha256f(buf, COMMON_SHA256_SIZE, hash);
+      buf[0]++;    
+      nrprocessed++;
+    }
+    // Wait for all tasks to be finished
+    //#pragma omp taskwait
   }
   endTime = clock();
   print_and_clean("SHA256 (fast):\t", nrprocessed, &startTime, &endTime);
@@ -87,6 +103,7 @@ sha256_bench(void) {
   nrprocessed = 0;
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (buf,hash) reduction(+ : nrprocessed)
   while(!finished) {
     sha256(buf, COMMON_SHA256_SLOW_SIZE, hash);
     buf[0]++;
@@ -109,6 +126,7 @@ md5_bench(void) {
 
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (buf,digest) reduction(+ : nrprocessed)
   while(!finished) {
     md5(buf, COMMON_MD5_SIZE, digest);
     buf[0]++;
@@ -129,6 +147,7 @@ md5_50_bench(void) {
   md5_50_init(16);
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (buf) reduction(+ : nrprocessed)
   while(!finished) {
     md5_50(buf, 16);
     buf[0]++;
@@ -142,6 +161,7 @@ md5_50_bench(void) {
   nrprocessed = 0;
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (buf) reduction(+ : nrprocessed)
   while(!finished) {
     md5_50(buf, 16);
     buf[0]++;
@@ -179,6 +199,7 @@ rc4_bench(void) {
 
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (enckey,cipher,match) reduction(+ : nrprocessed)
   while(!finished) {
     rc4Match40b(enckey, cipher, match);
     enckey[0]++;
@@ -190,6 +211,7 @@ rc4_bench(void) {
   nrprocessed = 0;
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (enckey,cipher,match) reduction(+ : nrprocessed)
   while(!finished) {
     rc4Decrypt(enckey, cipher, 3, match);
     enckey[0]++;
@@ -202,6 +224,7 @@ rc4_bench(void) {
   nrprocessed = 0;
   alarm(BENCHINTERVAL);
   startTime = clock();
+  #pragma omp parallel default(none) shared(finished) firstprivate (enckey,cipher,match) reduction(+ : nrprocessed)
   while(!finished) {
     rc4Decrypt(enckey, cipher, 3, match);
     enckey[0]++;
@@ -312,7 +335,9 @@ pdf_40b_bench(void) {
 }
 
 void
-runBenchmark(void) {
+runBenchmark(const int numth) {
+  omp_set_num_threads(numThreads);
+  numThreads = numth;
   struct sigaction act;
   act.sa_handler = interruptBench;
   sigemptyset(&act.sa_mask);

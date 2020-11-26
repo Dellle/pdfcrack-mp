@@ -137,7 +137,7 @@ main(int argc, char** argv) {
     
     switch(c) {
     case 'b':
-      runBenchmark();
+      runBenchmark(numthreads);
       return 0;
     case 'c':
       if(charset)
@@ -294,7 +294,7 @@ main(int argc, char** argv) {
       ret = 4;
       goto out1;
     }
-    else if(e->revision < 2 || (strcmp(e->s_handler,"Standard") != 0 || e->revision > 5)) {
+    else if(e->revision < 2 || (strcmp(e->s_handler,"Standard") != 0 || e->revision > 6)) {
       fprintf(stderr, "The specific version is not supported (%s - %d)\n", e->s_handler, e->revision);
       ret = 5;
       goto out1;
